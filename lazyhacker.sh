@@ -32,6 +32,15 @@ mkdir "$base_dir"
 cd "$base_dir" || exit 1
 echo "[+] Output directory created: $base_dir"
 
+#Verify all the tools are installed
+required_tools=(nmap ffuf jq)
+for tool in "${required_tools[@]}"; do
+  if ! command -v "$tool" &> /dev/null; then
+    echo "Error: $tool is not installed. Please install it and try again."
+    exit 1
+  fi
+done 
+
 # Detect redirect domain
 redirect_domain=$(curl -s -I http://$ip_address | grep -i "Location:" | sed -E 's/.*https?:\/\/([^\/]+).*/\1/' | tr -d '\r')
 if [[ -n "$redirect_domain" ]]; then
@@ -93,14 +102,16 @@ wait $nmap_udp_pid && { echo -e "\e[1m\n[Nmap UDP results]\n\e[0m"; cat nmap_udp
 
 if [[ -n "$ffuf_initial_pid" ]]; then
   wait $ffuf_initial_pid && {
-    echo -e "\e[1m\n[FFUF Directory Results]\e[0m\n\nSince the site might return 200 for every request, the results may contain false positives (It will fill your terminal with nonsense).\nTo manually inspect the results, run:\n\njq -r '.results[] | select(.status == 200) | .url' ./$base_dir/ffuf_initial\n"
+    echo -e "\e[1m\n[FFUF Directory Results]\e[0m\n\n"
+    jq -r '.results[] | select(.status == 200) | .url' ./$base_dir/ffuf_initial
     update_counter
   }
 fi
 
 if [[ -n "$ffuf_subs_pid" ]]; then
   wait $ffuf_subs_pid && {
-    echo -e "\e[1m\n[FFUF Subdomain Results]\e[0m\n\nPlease run:\n\njq -r '.results[] | select(.status == 200) | .url' ./$base_dir/ffuf_subs\n"
+    echo -e "\e[1m\n[FFUF Subdomain Results]\e[0m\n\n"
+    jq -r '.results[] | select(.status == 200) | .url' ./$base_dir/ffuf_subs\n
     update_counter
   }
 fi
